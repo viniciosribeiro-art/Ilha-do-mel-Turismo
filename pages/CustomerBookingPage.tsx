@@ -1,82 +1,62 @@
 import React, { useState, useMemo } from 'react';
-import { useParams, useLocation, useNavigate, Link, Navigate } from 'react-router-dom';
+import { useParams, useLocation, useNavigate, Link } from 'react-router-dom';
 import { TOURS, COMPANIES, VOUCHERS, BOOKINGS } from '../constants';
-import PublicHeader from '../components/PublicHeader';
-import PublicFooter from '../components/PublicFooter';
-import { Booking, BookingPassengers, TourPricing } from '../types';
-
-function useQuery() {
-    return new URLSearchParams(useLocation().search);
-}
+import { Booking, BookingPassengers } from '../types';
 
 const CustomerBookingPage: React.FC = () => {
     const { tourId } = useParams<{ tourId: string }>();
-    const query = useQuery();
+    const location = useLocation();
     const navigate = useNavigate();
-    const sellerId = query.get('sellerId');
+    const queryParams = new URLSearchParams(location.search);
+    const sellerId = queryParams.get('sellerId');
 
     const tour = TOURS.find(t => t.id === tourId);
-    const company = tour ? COMPANIES.find(c => c.id === tour.companyId) : undefined;
-
-    const [bookingDate, setBookingDate] = useState(new Date().toISOString().split('T')[0]);
-    const [selectedTime, setSelectedTime] = useState(tour?.schedules[0]?.time || '');
-    const [selectedPickup, setSelectedPickup] = useState(tour?.pickupLocations[0] || '');
+    const company = tour ? COMPANIES.find(c => c.id === tour.companyId) : null;
+    
     const [passengers, setPassengers] = useState<BookingPassengers>({ adults: 1, children: 0, infants: 0 });
     const [customerName, setCustomerName] = useState('');
     const [customerCpf, setCustomerCpf] = useState('');
-    const [voucherInput, setVoucherInput] = useState('');
-    const [voucherError, setVoucherError] = useState('');
-    const [isBooked, setIsBooked] = useState(false);
+    const [bookingDate, setBookingDate] = useState(new Date().toISOString().split('T')[0]);
+    const [selectedTime, setSelectedTime] = useState(tour?.schedules[0]?.time || '');
+    const [selectedPickup, setSelectedPickup] = useState(tour?.pickupLocations[0] || '');
+    const [voucherCode, setVoucherCode] = useState('');
+    const [error, setError] = useState('');
     
-    // Map plural passenger keys to singular pricing keys
-    const passengerTypeToPricingKey: { [key in keyof BookingPassengers]: keyof TourPricing } = {
-        adults: 'adult',
-        children: 'child',
-        infants: 'infant',
-    };
-
-    const resolvedSellerId = useMemo(() => {
-        if (sellerId) return sellerId; // From referral link
-        if (voucherInput) {
-            const voucher = VOUCHERS.find(v => v.code.toUpperCase() === voucherInput.toUpperCase());
-            if (voucher) {
-                // Critical Check: Ensure voucher is for the correct company
-                if (voucher.companyId === tour?.companyId) {
-                    setVoucherError('');
-                    return voucher.sellerId;
-                } else {
-                    setVoucherError('Voucher inválido para esta empresa.');
-                    return undefined;
-                }
-            } else {
-                setVoucherError('Voucher não encontrado.');
-                return undefined;
-            }
-        }
-        return undefined;
-    }, [sellerId, voucherInput, tour]);
-
     const totalPrice = useMemo(() => {
         if (!tour) return 0;
         return (
-            (passengers.adults * tour.pricing.adult) +
-            (passengers.children * tour.pricing.child) +
-            (passengers.infants * tour.pricing.infant)
+            passengers.adults * tour.pricing.adult +
+            passengers.children * tour.pricing.child +
+            passengers.infants * tour.pricing.infant
         );
     }, [passengers, tour]);
 
-    if (!tour || !company) {
-        return <Navigate to="/" replace />;
-    }
+    const handlePassengerChange = (type: keyof BookingPassengers, value: number) => {
+        setPassengers(prev => ({ ...prev, [type]: Math.max(0, value) }));
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        
-        if (voucherInput && !resolvedSellerId) {
-            alert('Por favor, corrija o voucher ou remova-o antes de continuar.');
+        setError('');
+
+        if (!tour || !company) return;
+        if (passengers.adults === 0 && passengers.children === 0) {
+            setError('É necessário pelo menos 1 adulto ou criança.');
             return;
         }
+        
+        // Voucher validation
+        let effectiveSellerId = sellerId;
+        if (voucherCode) {
+            const voucher = VOUCHERS.find(v => v.code.toLowerCase() === voucherCode.trim().toLowerCase() && v.companyId === company.id);
+            if (!voucher) {
+                setError('Voucher inválido ou não aplicável para esta empresa.');
+                return;
+            }
+            effectiveSellerId = voucher.sellerId;
+        }
 
+        // In a real app, this would be an API call and would return a booking confirmation.
         const newBooking: Booking = {
             id: `booking-${Date.now()}`,
             tourId: tour.id,
@@ -88,116 +68,108 @@ const CustomerBookingPage: React.FC = () => {
             selectedPickupLocation: selectedPickup,
             passengers,
             totalPrice,
-            sellerId: resolvedSellerId,
-            status: 'Pendente',
+            sellerId: effectiveSellerId || undefined,
+            status: 'Pendente', // Or 'Confirmada' if payment is integrated
         };
-        
+
         BOOKINGS.push(newBooking);
-        console.log("New Booking created:", newBooking);
-        setIsBooked(true);
+        console.log("Simulating booking creation:", newBooking);
+        alert(`Reserva para ${customerName} realizada com sucesso! ID da Reserva: ${newBooking.id}. Em breve você receberá a confirmação.`);
+        navigate(`/manage-booking`);
     };
 
-    if (isBooked) {
-        return (
-             <div className="bg-gray-100 min-h-screen flex flex-col">
-                <PublicHeader />
-                <main className="flex-grow flex items-center justify-center py-12">
-                    <div className="container mx-auto px-6 text-center bg-white p-12 rounded-lg shadow-xl">
-                        <h1 className="text-3xl font-bold text-green-600 mb-4">Reserva Enviada!</h1>
-                        <p className="text-gray-700 mb-2">Obrigado, {customerName}! Sua solicitação de reserva para o passeio <strong>{tour.name}</strong> foi enviada.</p>
-                        <p className="text-gray-600 mb-6">A empresa entrará em contato para confirmar. Você pode gerenciar sua reserva na página "Minha Reserva".</p>
-                        <Link to="/" className="bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700">
-                            Voltar para a Página Inicial
-                        </Link>
-                    </div>
-                </main>
-                <PublicFooter />
-            </div>
-        );
+    if (!tour || !company) {
+        return <div>Passeio não encontrado.</div>;
     }
 
     return (
-        <div className="bg-gray-100 min-h-screen flex flex-col">
-            <PublicHeader />
+         <div className="bg-gray-50 min-h-screen flex flex-col">
             <main className="flex-grow py-12">
                 <div className="container mx-auto px-6">
-                    <h1 className="text-3xl font-bold text-center text-gray-800 mb-2">Finalize sua Reserva</h1>
-                    <p className="text-center text-gray-600 mb-8">Você está reservando o passeio <strong>{tour.name}</strong> com a <strong>{company.name}</strong>.</p>
-                    
-                    <form onSubmit={handleSubmit} className="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-lg grid grid-cols-1 md:grid-cols-2 gap-8">
-                        {/* Left Column: Booking Details */}
-                        <div className="space-y-6">
-                            <div>
-                                <h3 className="font-semibold text-lg mb-2 text-gray-700">1. Data e Hora</h3>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <input type="date" value={bookingDate} onChange={e => setBookingDate(e.target.value)} className="w-full p-2 border rounded-md" required />
-                                    <select value={selectedTime} onChange={e => setSelectedTime(e.target.value)} className="w-full p-2 border rounded-md" required>
-                                        {tour.schedules.map(s => <option key={s.time} value={s.time}>{s.time}</option>)}
-                                    </select>
+                    <h1 className="text-3xl font-bold text-center text-gray-800 mb-8">Finalizar Reserva</h1>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        {/* Booking Form */}
+                        <div className="lg:col-span-2 bg-white p-8 rounded-lg shadow-lg">
+                            <form onSubmit={handleSubmit} className="space-y-6">
+                                <h2 className="text-2xl font-semibold mb-4 border-b pb-2">Detalhes do Responsável</h2>
+                                <div>
+                                    <label htmlFor="customerName" className="block text-sm font-medium text-gray-700">Nome Completo</label>
+                                    <input type="text" id="customerName" value={customerName} onChange={e => setCustomerName(e.target.value)} className="mt-1 w-full p-2 border rounded" required />
                                 </div>
-                            </div>
-                            <div>
-                                <h3 className="font-semibold text-lg mb-2 text-gray-700">2. Local de Embarque</h3>
-                                <select value={selectedPickup} onChange={e => setSelectedPickup(e.target.value)} className="w-full p-2 border rounded-md" required>
-                                    {tour.pickupLocations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
-                                </select>
-                            </div>
-                             <div>
-                                <h3 className="font-semibold text-lg mb-2 text-gray-700">3. Passageiros</h3>
-                                <div className="space-y-2">
-                                    {Object.entries({ adults: 'Adultos', children: 'Crianças', infants: 'De Colo' }).map(([key, label]) => {
-                                        const pricingKey = passengerTypeToPricingKey[key as keyof BookingPassengers];
-                                        const price = tour.pricing[pricingKey];
-                                        return (
-                                            <div key={key} className="flex justify-between items-center">
-                                                <label>{label} (R$ {price.toFixed(2)})</label>
-                                                <input 
-                                                    type="number" 
-                                                    min="0"
-                                                    value={passengers[key as keyof BookingPassengers]} 
-                                                    onChange={e => setPassengers(p => ({...p, [key]: parseInt(e.target.value) || 0}))} 
-                                                    className="w-20 p-2 border rounded-md text-center"
-                                                />
-                                            </div>
-                                        );
-                                    })}
+                                 <div>
+                                    <label htmlFor="customerCpf" className="block text-sm font-medium text-gray-700">CPF</label>
+                                    <input type="text" id="customerCpf" value={customerCpf} onChange={e => setCustomerCpf(e.target.value)} className="mt-1 w-full p-2 border rounded" required />
                                 </div>
-                            </div>
+                                <h2 className="text-2xl font-semibold mb-4 pt-4 border-b pb-2">Detalhes da Reserva</h2>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                        <label htmlFor="bookingDate" className="block text-sm font-medium text-gray-700">Data do Passeio</label>
+                                        <input type="date" id="bookingDate" value={bookingDate} onChange={e => setBookingDate(e.target.value)} className="mt-1 w-full p-2 border rounded" required />
+                                    </div>
+                                    <div>
+                                        <label htmlFor="selectedTime" className="block text-sm font-medium text-gray-700">Horário</label>
+                                        <select id="selectedTime" value={selectedTime} onChange={e => setSelectedTime(e.target.value)} className="mt-1 w-full p-2 border rounded" required>
+                                            {tour.schedules.map(s => <option key={s.time} value={s.time}>{s.time}</option>)}
+                                        </select>
+                                    </div>
+                                     <div>
+                                        <label htmlFor="selectedPickup" className="block text-sm font-medium text-gray-700">Local de Embarque</label>
+                                        <select id="selectedPickup" value={selectedPickup} onChange={e => setSelectedPickup(e.target.value)} className="mt-1 w-full p-2 border rounded" required>
+                                            {tour.pickupLocations.map(p => <option key={p} value={p}>{p}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+                                <h2 className="text-2xl font-semibold mb-4 pt-4 border-b pb-2">Passageiros</h2>
+                                 <div className="grid grid-cols-3 gap-4">
+                                    {Object.entries(tour.pricing).map(([type, price]) => (
+                                        <div key={type}>
+                                            <label className="block text-sm font-medium text-gray-700 capitalize">{type} (R$ {price.toFixed(2)})</label>
+                                            <input type="number" value={passengers[type as keyof BookingPassengers]} onChange={e => handlePassengerChange(type as keyof BookingPassengers, parseInt(e.target.value))} className="mt-1 w-full p-2 border rounded" min="0" />
+                                        </div>
+                                    ))}
+                                </div>
+                                <h2 className="text-2xl font-semibold mb-4 pt-4 border-b pb-2">Voucher / Código de Vendedor</h2>
+                                <div>
+                                    <label htmlFor="voucherCode" className="block text-sm font-medium text-gray-700">Código (Opcional)</label>
+                                    <input type="text" id="voucherCode" value={voucherCode} onChange={e => setVoucherCode(e.target.value)} placeholder="Ex: JOAO-GOLFINHOS-123" className="mt-1 w-full p-2 border rounded" disabled={!!sellerId} />
+                                    {sellerId && <p className="text-sm text-green-600 mt-1">Venda rastreada para vendedor.</p>}
+                                </div>
+                                {error && <p className="text-red-500 text-sm">{error}</p>}
+                                 <button type="submit" className="w-full bg-green-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-700 transition-colors">Confirmar Reserva</button>
+                            </form>
                         </div>
-
-                        {/* Right Column: Customer & Payment */}
-                        <div className="space-y-6">
-                            <div>
-                                <h3 className="font-semibold text-lg mb-2 text-gray-700">4. Seus Dados</h3>
-                                 <div className="space-y-4">
-                                    <input type="text" placeholder="Nome Completo" value={customerName} onChange={e => setCustomerName(e.target.value)} className="w-full p-2 border rounded-md" required />
-                                    <input type="text" placeholder="CPF" value={customerCpf} onChange={e => setCustomerCpf(e.target.value)} className="w-full p-2 border rounded-md" required />
+                        {/* Summary */}
+                        <div className="bg-white p-8 rounded-lg shadow-lg h-fit">
+                            <h2 className="text-2xl font-semibold mb-4 border-b pb-2">Resumo do Pedido</h2>
+                            <div className="space-y-4">
+                                <div>
+                                    <h3 className="font-bold">{tour.name}</h3>
+                                    <p className="text-sm text-gray-600">por {company.name}</p>
+                                </div>
+                                <div className="text-sm space-y-1">
+                                    <p><strong>Data:</strong> {new Date(bookingDate).toLocaleDateString('pt-BR')}</p>
+                                    <p><strong>Hora:</strong> {selectedTime}</p>
+                                    <p><strong>Embarque:</strong> {selectedPickup}</p>
+                                </div>
+                                <div className="border-t pt-2 text-sm">
+                                    {passengers.adults > 0 && <p>{passengers.adults} x Adulto(s)</p>}
+                                    {passengers.children > 0 && <p>{passengers.children} x Criança(s)</p>}
+                                    {passengers.infants > 0 && <p>{passengers.infants} x Bebê(s)</p>}
+                                </div>
+                                <div className="border-t pt-4">
+                                    <p className="text-lg font-bold flex justify-between">
+                                        <span>Total</span>
+                                        <span>R$ {totalPrice.toFixed(2)}</span>
+                                    </p>
                                 </div>
                             </div>
-                            <div>
-                                <h3 className="font-semibold text-lg mb-2 text-gray-700">Voucher de Vendedor</h3>
-                                <input 
-                                    type="text" 
-                                    placeholder="Insira o código do voucher (opcional)" 
-                                    value={voucherInput} 
-                                    onChange={e => setVoucherInput(e.target.value)}
-                                    className={`w-full p-2 border rounded-md ${voucherError ? 'border-red-500' : ''}`}
-                                    disabled={!!sellerId}
-                                />
-                                {voucherError && <p className="text-red-500 text-sm mt-1">{voucherError}</p>}
-                                {resolvedSellerId && !sellerId && <p className="text-green-600 text-sm mt-1">Voucher aplicado!</p>}
-                            </div>
-                            <div className="border-t pt-4">
-                                <h3 className="font-bold text-2xl text-gray-800 text-right">Total: R$ {totalPrice.toFixed(2)}</h3>
-                                <button type="submit" className="w-full mt-4 bg-green-600 text-white font-bold py-3 rounded-md hover:bg-green-700 text-lg">
-                                    Confirmar Reserva
-                                </button>
-                            </div>
+                             <Link to={`/company/${company.slug}`} className="text-sm text-blue-600 hover:underline mt-6 block text-center">
+                                &larr; Voltar para os passeios da empresa
+                            </Link>
                         </div>
-                    </form>
+                    </div>
                 </div>
             </main>
-            <PublicFooter />
         </div>
     );
 };

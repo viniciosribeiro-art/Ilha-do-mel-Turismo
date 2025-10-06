@@ -44,7 +44,7 @@ const ProtectedRoute: React.FC<{ allowedRoles?: UserRole[] }> = ({ allowedRoles 
     return <Navigate to="/dashboard" replace />; // or a specific "unauthorized" page
   }
 
-  return <Layout><Outlet /></Layout>;
+  return <Outlet />;
 };
 
 const DashboardRedirect: React.FC = () => {
@@ -69,33 +69,38 @@ const App: React.FC = () => {
         <Router>
           <Routes>
             {/* Public Routes */}
-            <Route path="/" element={<HomePage />} />
-            <Route path="/companies" element={<CompaniesListPage />} />
-            <Route path="/company/:slug" element={<PublicCompanyPage />} />
-            <Route path="/book/:tourId" element={<CustomerBookingPage />} />
-            <Route path="/seller/:sellerId" element={<SellerPublicPage />} />
-            <Route path="/manage-booking" element={<CustomerBookingSearchPage />} />
+            <Route element={<Layout />}>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/companies" element={<CompaniesListPage />} />
+                <Route path="/company/:slug" element={<PublicCompanyPage />} />
+                <Route path="/book/:tourId" element={<CustomerBookingPage />} />
+                <Route path="/seller/:sellerId" element={<SellerPublicPage />} />
+                <Route path="/manage-booking" element={<CustomerBookingSearchPage />} />
+            </Route>
+
             <Route path="/login" element={<Login />} />
 
             {/* Protected Dashboard Routes */}
             <Route path="/dashboard" element={<ProtectedRoute />}>
-              <Route index element={<DashboardRedirect />} />
-              
-              {/* Master Routes */}
-              <Route path="companies" element={<ManageCompanies />} />
-              <Route path="sellers" element={<ManageSellers />} />
-              <Route path="reports" element={<TransactionReports />} />
-              <Route path="homepage" element={<ManageHomepage />} />
-              <Route path="settings" element={<Settings />} />
+                <Route element={<Layout />}>
+                    <Route index element={<DashboardRedirect />} />
+                    
+                    {/* Master Routes */}
+                    <Route path="companies" element={<ManageCompanies />} />
+                    <Route path="sellers" element={<ManageSellers />} />
+                    <Route path="reports" element={<TransactionReports />} />
+                    <Route path="homepage" element={<ManageHomepage />} />
+                    <Route path="settings" element={<Settings />} />
 
-              {/* Company Routes */}
-              <Route path="tours" element={<ManageTours />} />
-              <Route path="bookings" element={<ManageBookings />} />
-              <Route path="seller-reports" element={<SellerReports />} />
-              
-              {/* Seller Routes */}
-              <Route path="my-links" element={<MyLinksPage />} />
-              <Route path="my-sales" element={<MySalesPage />} />
+                    {/* Company Routes */}
+                    <Route path="tours" element={<ManageTours />} />
+                    <Route path="bookings" element={<ManageBookings />} />
+                    <Route path="seller-reports" element={<SellerReports />} />
+                    
+                    {/* Seller Routes */}
+                    <Route path="my-links" element={<MyLinksPage />} />
+                    <Route path="my-sales" element={<MySalesPage />} />
+                </Route>
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />

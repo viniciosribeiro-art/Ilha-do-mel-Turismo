@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { BOOKINGS, TOURS, COMPANIES, SELLERS } from '../constants';
 import { Booking } from '../types';
-import PublicHeader from '../components/PublicHeader';
-import PublicFooter from '../components/PublicFooter';
 
 type EnrichedBooking = Booking & {
     tourName: string;
@@ -64,7 +62,6 @@ const CustomerBookingSearchPage: React.FC = () => {
 
     return (
         <div className="bg-gray-50 min-h-screen flex flex-col">
-            <PublicHeader />
             <main className="flex-grow py-12">
                 <div className="container mx-auto px-6">
                     <div className="max-w-3xl mx-auto bg-white p-8 rounded-lg shadow-lg">
@@ -126,7 +123,6 @@ const CustomerBookingSearchPage: React.FC = () => {
                     )}
                 </div>
             </main>
-            <PublicFooter />
         </div>
     );
 };

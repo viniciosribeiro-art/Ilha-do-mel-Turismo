@@ -1,8 +1,6 @@
 import React from 'react';
-import { useParams, Link, Navigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { SELLERS, COMPANIES } from '../constants';
-import PublicHeader from '../components/PublicHeader';
-import PublicFooter from '../components/PublicFooter';
 
 const SellerPublicPage: React.FC = () => {
     const { sellerId } = useParams<{ sellerId: string }>();
@@ -11,7 +9,6 @@ const SellerPublicPage: React.FC = () => {
     if (!seller) {
         return (
              <div className="bg-gray-100 min-h-screen flex flex-col">
-                <PublicHeader />
                 <main className="flex-grow flex items-center justify-center">
                     <div className="text-center">
                         <h1 className="text-4xl font-bold text-red-600">Vendedor Não Encontrado</h1>
@@ -21,14 +18,12 @@ const SellerPublicPage: React.FC = () => {
                         </Link>
                     </div>
                 </main>
-                <PublicFooter />
             </div>
         );
     }
 
     return (
         <div className="bg-gray-100 min-h-screen flex flex-col">
-            <PublicHeader />
             <main className="flex-grow py-12">
                 <div className="container mx-auto px-6">
                     <div className="text-center mb-12 bg-white p-8 rounded-lg shadow-md">
@@ -59,7 +54,6 @@ const SellerPublicPage: React.FC = () => {
                     </div>
                 </div>
             </main>
-            <PublicFooter />
         </div>
     );
 };
