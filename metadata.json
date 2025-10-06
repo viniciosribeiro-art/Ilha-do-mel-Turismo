@@ -1,0 +1,7 @@
+{
+  "name": "Passeios Ilha do Mel - Plataforma de Gestão",
+  "description": "Uma plataforma completa para gerenciamento de empresas de passeios de barco, vendedores e reservas de clientes na Ilha do Mel - PR. Inclui painéis administrativos para administradores, empresas e vendedores, além de um portal para clientes.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
